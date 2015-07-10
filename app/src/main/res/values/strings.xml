@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">ListViewDemo</string>
+
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <color name="group_buy_color">#FFA515</color>
+    <color name="light_gray">#D6D5D5</color>
+</resources>

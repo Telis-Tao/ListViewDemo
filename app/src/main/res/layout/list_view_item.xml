@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/background_selector">
+
+    <!--<ImageView-->
+    <!--android:layout_width="match_parent"-->
+    <!--android:layout_height="30dp" />-->
+
+    <com.example.xiaoqingtao.listviewdemo.view.NetworkImageView
+        android:id="@+id/icon"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:layout_margin="@dimen/medium_margin"
+        android:clickable="true"
+        android:scaleType="centerCrop"/>
+
+    <TextView
+        android:id="@+id/number"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@+id/icon"
+        android:layout_toRightOf="@+id/icon"
+        android:text="1."
+        android:textColor="@android:color/black"
+        android:textSize="@dimen/normal_font"/>
+
+    <TextView
+        android:id="@+id/name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@+id/icon"
+        android:layout_toRightOf="@+id/number"
+        android:text="火焰山"
+        android:textColor="@android:color/black"
+        android:textSize="@dimen/normal_font"/>
+
+    <TextView
+        android:id="@+id/group_buy"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_margin="@dimen/medium_margin"
+        android:background="@color/group_buy_color"
+        android:text="团"
+        android:textColor="@android:color/white"
+        android:textSize="@dimen/normal_font"/>
+
+    <RatingBar
+        android:id="@+id/rating_bar"
+        style="@android:style/Widget.Holo.RatingBar.Small"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/number"
+        android:layout_marginTop="@dimen/small_margin"
+        android:layout_toRightOf="@+id/icon"
+        android:isIndicator="true"
+        android:numStars="5"/>
+
+
+    <TextView
+        android:id="@+id/price"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/rating_bar"
+        android:layout_alignParentRight="true"
+        android:layout_marginRight="@dimen/medium_margin"
+        android:text="￥70"
+        android:textSize="@dimen/normal_font"/>
+
+    <TextView
+        android:id="@+id/description"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/rating_bar"
+        android:layout_marginTop="@dimen/small_margin"
+        android:layout_toRightOf="@+id/icon"
+        android:text="火锅 望京"
+        android:textSize="@dimen/normal_font"/>
+
+    <TextView
+        android:id="@+id/distance"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignRight="@+id/group_buy"
+        android:layout_below="@+id/rating_bar"
+        android:layout_marginTop="@dimen/small_margin"
+        android:text="50m"
+        android:textSize="@dimen/normal_font"/>
+
+    <TextView
+        android:id="@+id/discount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/icon"
+        android:layout_marginLeft="@dimen/medium_margin"
+        android:layout_marginRight="@dimen/medium_margin"
+        android:background="@drawable/discount_drawable"
+        android:padding="@dimen/little_margin"
+        android:text="最低折扣8.8折,共3条团购"
+        android:textSize="@dimen/normal_font"/>
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_below="@id/discount"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/route"
+            style="@style/search_text_view"
+            android:text="路线"/>
+
+        <TextView
+            android:id="@+id/telephone"
+            style="@style/search_text_view"
+            android:text="电话"/>
+
+        <TextView
+            android:id="@+id/inner_map"
+            style="@style/search_text_view"
+            android:text="室内地图"/>
+    </LinearLayout>
+</RelativeLayout>
