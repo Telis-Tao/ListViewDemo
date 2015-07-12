@@ -70,9 +70,9 @@ public class NetworkImageView extends ImageView implements Request {
         mUrl = url;
         Bitmap bitmap = cache.get(mUrl);
         if (bitmap == null) {
-//            if (mRunningRequest.contains(mUrl)) {
-            synchronized (this) {
-                mTaskQueue.add(this);
+            //            if (mRunningRequest.contains(mUrl)) {
+            mTaskQueue.add(this);
+            synchronized (mRunningRequest) {
                 if (!mRunningRequest.contains(mUrl)) {
                     mThreadPool.submit(new Runnable() {
                         @Override
@@ -99,7 +99,7 @@ public class NetworkImageView extends ImageView implements Request {
                                         null,
                                         options);
                                 callFinished(bitmap, mUrl);
-//                        mTaskQueue.remove(this);
+                                //                        mTaskQueue.remove(this);
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
@@ -112,13 +112,11 @@ public class NetworkImageView extends ImageView implements Request {
         }
     }
 
-    public static void callFinished(Bitmap bitmap, String url) {
+    public synchronized static void callFinished(Bitmap bitmap, String url) {
         if (bitmap != null) {
             cache.put(url, bitmap);
         }
-        synchronized (mRunningRequest) {
-            mRunningRequest.remove(url);
-        }
+        mRunningRequest.remove(url);
         Iterator<Request> iterator = mTaskQueue.iterator();
         while (iterator.hasNext()) {
             Request req = iterator.next();
@@ -150,18 +148,18 @@ public class NetworkImageView extends ImageView implements Request {
         setImageResource(R.drawable.error);
     }
 
-//    @Override
-//    public boolean onFinish() {
-//        Bitmap bitmap = cache.get(mUrl);
-//        if (bitmap != null) {
-//            setImageBitmap(bitmap);
-//            return true;
-//        }
-//        return false;
-//    }
-//
-//    @Override
-//    public String getUrl() {
-//        return this.mUrl;
-//    }
+    //    @Override
+    //    public boolean onFinish() {
+    //        Bitmap bitmap = cache.get(mUrl);
+    //        if (bitmap != null) {
+    //            setImageBitmap(bitmap);
+    //            return true;
+    //        }
+    //        return false;
+    //    }
+    //
+    //    @Override
+    //    public String getUrl() {
+    //        return this.mUrl;
+    //    }
 }

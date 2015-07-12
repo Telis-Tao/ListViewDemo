@@ -51,7 +51,7 @@ public class ListViewAdapter extends BaseAdapter {
         View view = convertView;
         ViewHolder viewHolder;
         if (convertView == null) {
-            view = LayoutInflater.from(mContext).inflate(R.layout.list_view_item, null);
+            view = LayoutInflater.from(mContext).inflate(R.layout.list_view_item,null);
             viewHolder = new ViewHolder();
             viewHolder.icon = (NetworkImageView) view.findViewById(R.id.icon);
             viewHolder.number = (TextView) view.findViewById(R.id.number);
