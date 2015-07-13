@@ -11,7 +11,6 @@ import android.widget.ImageView;
 import com.example.xiaoqingtao.listviewdemo.R;
 import com.example.xiaoqingtao.listviewdemo.interfaces.Request;
 
-import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.HashSet;
@@ -21,15 +20,31 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
-/**
- * Created by xiaoqing.tao on 2015/7/9.
- */
+import rx.Observable;
+import rx.Subscriber;
+import rx.Subscription;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.functions.Func1;
+import rx.schedulers.Schedulers;
+
 public class NetworkImageView extends ImageView implements Request {
-    private static LruCache<String, Bitmap> cache;
-    private static ExecutorService mThreadPool;
-    private static Queue<Request> mTaskQueue;
-    private static HashSet<String> mRunningRequest;
+    private static final String TAG = "network image view";
+    private static LruCache<String, Bitmap> sCache;
+
+    private static ExecutorService sThreadPool;
+    private static Queue<Request> sTaskQueue;
+    private static HashSet<String> sRunningRequest;
+
+    public static void setThreadPool(ExecutorService threadPool) {
+        sThreadPool = threadPool;
+    }
+
+    public static void setCache(LruCache<String, Bitmap> cache) {
+        sCache = cache;
+    }
+
     private String mUrl;
+    private Subscription mSubscription;
 
     public NetworkImageView(Context context) {
         this(context, null);
@@ -41,24 +56,27 @@ public class NetworkImageView extends ImageView implements Request {
 
     public NetworkImageView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        if (cache == null) {
+        if (sCache == null) {
             int maxMemory = (int) Runtime.getRuntime().maxMemory();
             int mCacheSize = maxMemory / 8;
-            cache = new LruCache<String, Bitmap>(mCacheSize) {
+            sCache = new LruCache<String, Bitmap>(mCacheSize) {
                 @Override
                 protected int sizeOf(String key, Bitmap value) {
                     return value.getRowBytes() * value.getHeight();
                 }
             };
         }
-        if (mThreadPool == null) {
-            mThreadPool = Executors.newFixedThreadPool(3);
+//        if (mImages == null) {
+//            mImages = new NetworkImageBean();
+//        }
+        if (sThreadPool == null) {
+            sThreadPool = Executors.newFixedThreadPool(3);
         }
-        if (mTaskQueue == null) {
-            mTaskQueue = new LinkedBlockingQueue<>();
+        if (sTaskQueue == null) {
+            sTaskQueue = new LinkedBlockingQueue<>();
         }
-        if (mRunningRequest == null) {
-            mRunningRequest = new HashSet<>();
+        if (sRunningRequest == null) {
+            sRunningRequest = new HashSet<>();
         }
     }
 
@@ -66,62 +84,146 @@ public class NetworkImageView extends ImageView implements Request {
         return mUrl;
     }
 
-    public void setImageUrl(String url) {
-        mUrl = url;
-        Bitmap bitmap = cache.get(mUrl);
-        if (bitmap == null) {
-            //            if (mRunningRequest.contains(mUrl)) {
-            mTaskQueue.add(this);
-            synchronized (mRunningRequest) {
-                if (!mRunningRequest.contains(mUrl)) {
-                    mThreadPool.submit(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                Log.i("running", "log for runnable");
-                                URL url = new URL(mUrl);
-                                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                                conn.connect();
-                                // get size
-                                BitmapFactory.Options options = new BitmapFactory.Options();
-                                options.inJustDecodeBounds = true;
-                                BitmapFactory.decodeStream(conn.getInputStream(), null,
-                                        options);
-                                int width = options.outWidth;
-                                int height = options.outHeight;
-                                int min = Math.min(width, height);
-                                int scale = Math.max(1, min / getWidth());
-                                options.inJustDecodeBounds = false;
-                                options.inSampleSize = scale;
-                                conn = (HttpURLConnection) url.openConnection();
-                                conn.connect();
-                                Bitmap bitmap = BitmapFactory.decodeStream(conn.getInputStream(),
-                                        null,
-                                        options);
-                                callFinished(bitmap, mUrl);
-                                //                        mTaskQueue.remove(this);
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    });
-                }
-            }
-        } else {
-            setImageBitmap(bitmap);
+    private void clearSubscribe() {
+        if (mSubscription != null) {
+            mSubscription.unsubscribe();
+            mSubscription = null;
         }
     }
 
-    public synchronized static void callFinished(Bitmap bitmap, String url) {
-        if (bitmap != null) {
-            cache.put(url, bitmap);
+    public void setImageUrl(String url) {
+        mUrl = url;
+        sTaskQueue.offer(this);
+        mSubscription = Observable.just(mUrl)
+                .filter(new Func1<String, Boolean>() {//是否已经在running
+                    @Override
+                    public Boolean call(String bean) {
+                        if (!sRunningRequest.contains(mUrl)) {
+                            sRunningRequest.add(mUrl);
+                            return true;
+                        }
+                        return false;
+                    }
+                }).map(new Func1<String, Bitmap>() {
+                    @Override
+                    public Bitmap call(String s) {
+                        return sCache.get(s);
+                    }
+                }).filter(new Func1<Bitmap, Boolean>() {
+                    @Override
+                    public Boolean call(Bitmap bitmap) {
+                        return bitmap == null;//缓存命中，则到这里为止
+                    }
+                }).map(new Func1<Bitmap, Bitmap>() {
+                    @Override
+                    public Bitmap call(Bitmap bitmap) {
+                        bitmap = getBitmap();
+                        if (bitmap != null) {
+                            sCache.put(mUrl, bitmap);
+                        }
+                        sRunningRequest.remove(mUrl);
+                        return bitmap;
+                    }
+                })
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Subscriber<Bitmap>() {
+                    @Override
+                    public void onCompleted() {
+                        Log.d(TAG, "onCompleted ");
+                        callFinished();
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        Log.d(TAG, "onError " + throwable);
+                    }
+
+                    @Override
+                    public void onNext(Bitmap bitmap) {
+                        callFinished();
+                    }
+                });
+    }
+
+    //普通写法：
+//    NetworkImageBean bitmap = sCache.get(mUrl);
+    //        if (bitmap == null) {
+//            //            if (sRunningRequest.contains(mUrl)) {
+//            sTaskQueue.add(this);
+//            synchronized (sRunningRequest) {
+//                if (!sRunningRequest.contains(mUrl)) {
+//                    mThreadPool.submit(new Runnable() {
+//                        @Override
+//                        public void run() {
+//                            try {
+//                                Log.i("running", "log for runnable");
+//                                URL url = new URL(mUrl);
+//                                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+//                                conn.connect();
+//                                // get size
+//                                BitmapFactory.Options options = new BitmapFactory.Options();
+//                                options.inJustDecodeBounds = true;
+//                                BitmapFactory.decodeStream(conn.getInputStream(), null,
+//                                        options);
+//                                int width = options.outWidth;
+//                                int height = options.outHeight;
+//                                int min = Math.min(width, height);
+//                                int scale = Math.max(1, min / getWidth());
+//                                options.inJustDecodeBounds = false;
+//                                options.inSampleSize = scale;
+//                                conn = (HttpURLConnection) url.openConnection();
+//                                conn.connect();
+//                                NetworkImageBean bitmap = BitmapFactory.decodeStream(conn
+// .getInputStream(),
+//                                        null,
+//                                        options);
+//                                callFinished(bitmap, mUrl);
+//                                //                        sTaskQueue.remove(this);
+//                            } catch (IOException e) {
+//                                e.printStackTrace();
+//                            }
+//                        }
+//                    });
+//                }
+//            }
+//        } else {
+//            setImageBitmap(bitmap);
+//        }
+    private Bitmap getBitmap() {
+        Bitmap bitmap = null;
+        try {
+            URL url = new URL(mUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.connect();
+            // get size
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inJustDecodeBounds = true;
+            BitmapFactory.decodeStream(conn.getInputStream(), null,
+                    options);
+            int width = options.outWidth;
+            int height = options.outHeight;
+            int min = Math.min(width, height);
+            int scale = Math.max(1, min / getWidth());
+            options.inJustDecodeBounds = false;
+            options.inSampleSize = scale;
+            conn = (HttpURLConnection) url.openConnection();
+            conn.connect();
+            bitmap = BitmapFactory.decodeStream(conn.getInputStream(),
+                    null,
+                    options);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        mRunningRequest.remove(url);
-        Iterator<Request> iterator = mTaskQueue.iterator();
+        return bitmap;
+    }
+
+    public synchronized static void callFinished() {
+        Iterator<Request> iterator = sTaskQueue.iterator();
         while (iterator.hasNext()) {
             Request req = iterator.next();
-            if (cache.get(req.getUrl()) != null) {
-                req.onFinish(cache.get(req.getUrl()));
+            if (sCache.get(req.getUrl()) != null) {
+                req.onFinish(sCache.get(req.getUrl()));
                 iterator.remove();
             }
         }
@@ -144,22 +246,9 @@ public class NetworkImageView extends ImageView implements Request {
         return mUrl;
     }
 
-    public void clearImage() {
+    public void clear() {
         setImageResource(R.drawable.error);
+        clearSubscribe();
     }
 
-    //    @Override
-    //    public boolean onFinish() {
-    //        Bitmap bitmap = cache.get(mUrl);
-    //        if (bitmap != null) {
-    //            setImageBitmap(bitmap);
-    //            return true;
-    //        }
-    //        return false;
-    //    }
-    //
-    //    @Override
-    //    public String getUrl() {
-    //        return this.mUrl;
-    //    }
 }

@@ -7,10 +7,10 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ListView;
 
-import com.example.xiaoqingtao.listviewdemo.others.ListViewAdapter;
-import com.example.xiaoqingtao.listviewdemo.bean.ListViewBean;
 import com.example.xiaoqingtao.listviewdemo.R;
+import com.example.xiaoqingtao.listviewdemo.bean.ListViewBean;
 import com.example.xiaoqingtao.listviewdemo.db.DBManager;
+import com.example.xiaoqingtao.listviewdemo.others.ListViewAdapter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,8 +26,6 @@ public class MainActivity extends Activity {
         DBManager dbManager = new DBManager(getApplicationContext());
         List<ListViewBean> list = dbManager.getAll();
         listView.setAdapter(new ListViewAdapter(list, this));
-//        dbManager.addAll(list);
-//        dbManager.closeDB();
     }
 
     @NonNull

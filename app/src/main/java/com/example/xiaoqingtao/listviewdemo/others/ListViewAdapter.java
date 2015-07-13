@@ -18,9 +18,6 @@ import com.example.xiaoqingtao.listviewdemo.view.NetworkImageView;
 
 import java.util.List;
 
-/**
- * Created by xiaoqing.tao on 2015/7/6.
- */
 public class ListViewAdapter extends BaseAdapter {
     private List<ListViewBean> mList;
 
@@ -51,7 +48,7 @@ public class ListViewAdapter extends BaseAdapter {
         View view = convertView;
         ViewHolder viewHolder;
         if (convertView == null) {
-            view = LayoutInflater.from(mContext).inflate(R.layout.list_view_item,null);
+            view = LayoutInflater.from(mContext).inflate(R.layout.list_view_item, null);
             viewHolder = new ViewHolder();
             viewHolder.icon = (NetworkImageView) view.findViewById(R.id.icon);
             viewHolder.number = (TextView) view.findViewById(R.id.number);
@@ -71,7 +68,7 @@ public class ListViewAdapter extends BaseAdapter {
         ListViewBean item = mList.get(position);
 //        viewHolder.icon.setImageResource(R.drawable.icon);
 //        viewHolder.icon.setImageBitmap(item.getIconURL());
-        viewHolder.icon.clearImage();
+        viewHolder.icon.clear();
         viewHolder.icon.setImageUrl(item.getIconURL());
         viewHolder.number.setText(String.valueOf(position + 1) + ".");
         viewHolder.name.setText(item.getName());
