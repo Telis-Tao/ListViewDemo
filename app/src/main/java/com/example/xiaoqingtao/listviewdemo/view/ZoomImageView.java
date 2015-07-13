@@ -16,9 +16,9 @@ import com.example.xiaoqingtao.listviewdemo.R;
 
 public class ZoomImageView extends ImageView {
     //    for debug
-//    private static final String TAG = "ZoomImageView";
+    private static final String TAG = "ZoomImageView";
     // 设置
-    private static final float mDisplayDensity = 25;
+    private static final float mDisplayDensity = 250;
 
     private static final int SINGLE_FINGER = 0;
     private static final int DOUBLE_FINGER = 1;
