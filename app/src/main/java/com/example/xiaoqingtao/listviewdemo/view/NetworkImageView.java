@@ -10,6 +10,7 @@ import android.widget.ImageView;
 
 import com.example.xiaoqingtao.listviewdemo.R;
 import com.example.xiaoqingtao.listviewdemo.interfaces.Request;
+import com.example.xiaoqingtao.listviewdemo.tools.ImageTools;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -94,43 +95,46 @@ public class NetworkImageView extends ImageView implements Request {
     public void setImageUrl(String url) {
         mUrl = url;
         sTaskQueue.offer(this);
-        mSubscription = Observable.just(mUrl)
+        mSubscription = Observable.just(url)
                 .filter(new Func1<String, Boolean>() {//是否已经在running
                     @Override
-                    public Boolean call(String bean) {
-                        if (!sRunningRequest.contains(mUrl)) {
-                            sRunningRequest.add(mUrl);
+                    public Boolean call(String url) {
+                        if (!sRunningRequest.contains(url)) {
+                            sRunningRequest.add(url);
                             return true;
                         }
                         return false;
                     }
-                }).map(new Func1<String, Bitmap>() {
+                }).filter(new Func1<String, Boolean>() {
                     @Override
-                    public Bitmap call(String s) {
-                        return sCache.get(s);
+                    public Boolean call(String url) {//缓存命中，则到这里为止
+                        return sCache.get(url) == null;
                     }
-                }).filter(new Func1<Bitmap, Boolean>() {
+                }).filter(new Func1<String, Boolean>() {
                     @Override
-                    public Boolean call(Bitmap bitmap) {
-                        return bitmap == null;//缓存命中，则到这里为止
-                    }
-                }).map(new Func1<Bitmap, Bitmap>() {
-                    @Override
-                    public Bitmap call(Bitmap bitmap) {
-                        bitmap = getBitmap();
-                        if (bitmap != null) {
+                    public Boolean call(String url) {//硬盘命中
+                        Bitmap bitmap = ImageTools.getBitmapFromDisk(url, getContext());
+                        if (url != null) {
                             sCache.put(mUrl, bitmap);
                         }
-                        sRunningRequest.remove(mUrl);
+                        return bitmap == null;
+                    }
+                }).map(new Func1<String, Bitmap>() {
+                    @Override
+                    public Bitmap call(String url) {
+                        Bitmap bitmap = getBitmap(url);//从网络上获取
+                        sRunningRequest.remove(url);
+                        if (bitmap != null) {
+                            sCache.put(url, bitmap);//存入内存
+                            ImageTools.saveBitmapToDisk(url, bitmap, getContext());//存入硬盘
+                        }
                         return bitmap;
                     }
-                })
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
+                }).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new Subscriber<Bitmap>() {
                     @Override
                     public void onCompleted() {
-                        Log.d(TAG, "onCompleted ");
+//                        Log.d(TAG, "onCompleted ");
                         callFinished();
                     }
 
@@ -190,10 +194,10 @@ public class NetworkImageView extends ImageView implements Request {
 //        } else {
 //            setImageBitmap(bitmap);
 //        }
-    private Bitmap getBitmap() {
+    private Bitmap getBitmap(String URL) {
         Bitmap bitmap = null;
         try {
-            URL url = new URL(mUrl);
+            URL url = new URL(URL);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.connect();
             // get size
@@ -238,6 +242,7 @@ public class NetworkImageView extends ImageView implements Request {
                     setImageBitmap(bitmap);
                 }
             });
+//            bitmap.recycle();
         }
     }
 

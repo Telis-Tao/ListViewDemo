@@ -1,5 +1,9 @@
 package com.example.xiaoqingtao.listviewdemo.view;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.TypeEvaluator;
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -10,6 +14,7 @@ import android.util.AttributeSet;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.ImageView;
 
 import com.example.xiaoqingtao.listviewdemo.R;
@@ -17,11 +22,12 @@ import com.example.xiaoqingtao.listviewdemo.R;
 public class ZoomImageView extends ImageView {
     //    for debug
     private static final String TAG = "ZoomImageView";
-    // 设置
+    // 设置缩放比例
     private static final float mDisplayDensity = 250;
 
     private static final int SINGLE_FINGER = 0;
     private static final int DOUBLE_FINGER = 1;
+    private static final int RESET_IMAGE_DURATION = 500;
 
     private Bitmap mBitmap;
     private boolean isInit = true;
@@ -49,7 +55,7 @@ public class ZoomImageView extends ImageView {
     public void setImageBitmap(Bitmap bm) {
         mBitmap = bm;
         mOriginalScale = getWidth() / (float) mBitmap.getWidth();
-        resetImage();
+        resetImage(false);
     }
 
     private float getFingersDistance(MotionEvent event) {
@@ -60,13 +66,43 @@ public class ZoomImageView extends ImageView {
         return (float) Math.sqrt(Math.pow(lastX - firstX, 2) + Math.pow(lastY - firstY, 2));
     }
 
-    private void resetImage() {
+    private void resetImage(boolean hasAnimator) {
         newMatrix.reset();
-        savedMatrix.reset();
         newMatrix.postScale(mOriginalScale, mOriginalScale);
         newMatrix.postTranslate(0, (getHeight() - mBitmap.getHeight() * mOriginalScale) / 2);
-        setImageMatrix(newMatrix);
-        savedMatrix.set(newMatrix);
+        if (hasAnimator) {
+            ValueAnimator va = getResetImageAnimator();
+            va.start();
+        } else {
+            savedMatrix.reset();
+            setImageMatrix(newMatrix);
+            savedMatrix.set(newMatrix);
+        }
+//        newMatrix.
+    }
+
+    @NonNull
+    private ValueAnimator getResetImageAnimator() {
+        ValueAnimator va = ValueAnimator.ofObject(new MyEvaluetor(), savedMatrix, newMatrix);
+        va.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                newMatrix = (Matrix) animation.getAnimatedValue();
+                setImageMatrix(newMatrix);
+            }
+        });
+        va.setInterpolator(new AccelerateDecelerateInterpolator());
+        va.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                super.onAnimationEnd(animation);
+                savedMatrix.reset();
+                setImageMatrix(newMatrix);
+                savedMatrix.set(newMatrix);
+            }
+        });
+        va.setDuration(RESET_IMAGE_DURATION);
+        return va;
     }
 
     @Override
@@ -75,7 +111,7 @@ public class ZoomImageView extends ImageView {
         if (isInit) {
             int width = mBitmap.getWidth();
             mOriginalScale = getWidth() / (float) width;
-            resetImage();
+            resetImage(false);
             isInit = false;
         }
     }
@@ -96,7 +132,7 @@ public class ZoomImageView extends ImageView {
         @Override
         public boolean onDoubleTap(MotionEvent e) {
             //触发双击事件
-            resetImage();
+            resetImage(true);
             return true;
         }
     }
@@ -155,6 +191,29 @@ public class ZoomImageView extends ImageView {
                     break;
             }
             return mGestureDetector.onTouchEvent(event);
+        }
+    }
+
+    private class MyEvaluetor implements TypeEvaluator<Matrix> {
+
+        @Override
+        public Matrix evaluate(float fraction, Matrix startValue, Matrix endValue) {
+            Matrix tmpMatrix = new Matrix();
+            float[] tmpStart = new float[9];
+            float[] tmpEnd = new float[9];
+            float[] target = new float[9];
+            startValue.getValues(tmpStart);
+            endValue.getValues(tmpEnd);
+            for (int i = 0; i < tmpStart.length; i++) {
+                target[i] = tmpStart[i] + fraction * (tmpEnd[i] - tmpStart[i]);
+            }
+            tmpMatrix.setValues(target);
+//            Log.d(TAG, "evaluate " + Arrays.toString(target));
+//            Log.d(TAG, "evaluate " + tmpMatrix);
+//            Log.d(TAG, "evaluate " + startValue + "\n" + endValue);
+//            tmpMatrix.setValues(target);
+//            Log.d(TAG, "evaluate " + tmpMatrix);
+            return tmpMatrix;
         }
     }
 }
