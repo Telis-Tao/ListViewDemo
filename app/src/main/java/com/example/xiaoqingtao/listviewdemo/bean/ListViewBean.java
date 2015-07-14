@@ -2,9 +2,6 @@ package com.example.xiaoqingtao.listviewdemo.bean;
 
 import com.example.xiaoqingtao.listviewdemo.R;
 
-/**
- * Created by xiaoqing.tao on 2015/7/6.
- */
 public class ListViewBean {
     public static final String[] URLS = {"http://img.tankr.net/s/medium/M0VF.jpg", "http://img" +
             ".tankr.net/s/medium/XL7V.jpg", "http://img.tankr.net/s/medium/ET95.jpg", "http://img" +

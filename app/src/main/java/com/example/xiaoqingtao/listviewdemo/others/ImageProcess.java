@@ -1,0 +1,138 @@
+package com.example.xiaoqingtao.listviewdemo.others;
+
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.os.Handler;
+import android.util.LruCache;
+
+import com.example.xiaoqingtao.listviewdemo.interfaces.Request;
+
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Queue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+
+public class ImageProcess {
+    private static final String TAG = "ImageProcess";
+    private static LruCache<String, Bitmap> sCache;
+    private static ExecutorService sThreadPool;
+    private static Queue<Request> sTaskQueue;
+    private static HashSet<String> sRunningRequest;
+    private static ImageProcess mImageProcess;
+    private static Context mContext;
+
+    private synchronized static void callFinished() {
+        new Handler(mContext.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                Iterator<Request> iterator = sTaskQueue.iterator();
+                while (iterator.hasNext()) {
+                    Request req = iterator.next();
+                    Bitmap bitmap = sCache.get(req.getUrl());
+                    if (bitmap != null) {
+                        req.onFinish(bitmap);
+                        iterator.remove();
+                    }
+                }
+            }
+        });
+
+    }
+
+    public void post(Request request) {
+        sTaskQueue.offer(request);
+        String url = request.getUrl();
+        Bitmap bitmap = sCache.get(url);
+//        Bitmap bitmap = null;
+        if (bitmap != null) {
+            callFinished();
+            return;
+        }
+        synchronized (sRunningRequest) {
+            if (!sRunningRequest.contains(url)) {
+                sRunningRequest.add(url);
+            }
+        }
+        sThreadPool.submit(new NetworkRunnable(url, request));
+    }
+
+    public static ImageProcess getInstance(Context context) {
+        if (mImageProcess == null) {
+            synchronized (ImageProcess.class) {
+                if (mImageProcess == null)
+                    mImageProcess = new ImageProcess(context);
+            }
+        }
+        return mImageProcess;
+    }
+
+    public ImageProcess(Context context) {
+        mContext = context;
+        if (sCache == null) {
+            int maxMemory = (int) Runtime.getRuntime().maxMemory();
+            int mCacheSize = maxMemory / 8;
+            sCache = new LruCache<String, Bitmap>(mCacheSize) {
+                @Override
+                protected int sizeOf(String key, Bitmap value) {
+                    return value.getRowBytes() * value.getHeight();
+                }
+            };
+        }
+        if (sThreadPool == null) {
+            sThreadPool = Executors.newFixedThreadPool(3);
+        }
+        if (sTaskQueue == null) {
+            sTaskQueue = new LinkedBlockingQueue<>();
+        }
+        if (sRunningRequest == null) {
+            sRunningRequest = new HashSet<>();
+        }
+    }
+
+    private class NetworkRunnable implements Runnable {
+        private String mUrl;
+        private Request mRequest;
+
+        public NetworkRunnable(String url, Request request) {
+            mUrl = url;
+            mRequest = request;
+        }
+
+        @Override
+        public void run() {
+            Bitmap bitmap = null;
+            try {
+                URL url = new URL(mUrl);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.connect();
+                // get size
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inJustDecodeBounds = true;
+                BitmapFactory.decodeStream(conn.getInputStream(), null,
+                        options);
+                int width = options.outWidth;
+                int height = options.outHeight;
+                int min = Math.min(width, height);
+                int scale = Math.max(1, min / mRequest.getNeededImageWidth());
+                options.inJustDecodeBounds = false;
+                options.inSampleSize = scale;
+                conn = (HttpURLConnection) url.openConnection();
+                conn.connect();
+                bitmap = BitmapFactory.decodeStream(conn.getInputStream(),
+                        null,
+                        options);
+            } catch (Exception e) {
+                e.printStackTrace();
+                mRequest.onError();
+            }
+            sCache.put(mUrl, bitmap);
+            sRunningRequest.remove(mUrl);
+            callFinished();
+        }
+    }
+}

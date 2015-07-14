@@ -18,14 +18,16 @@ import java.util.List;
 public class MainActivity extends Activity {
 
 
+    private ListView mListView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        ListView listView = (ListView) findViewById(R.id.list_view);
+        mListView = (ListView) findViewById(R.id.list_view);
         DBManager dbManager = new DBManager(getApplicationContext());
         List<ListViewBean> list = dbManager.getAll();
-        listView.setAdapter(new ListViewAdapter(list, this));
+        mListView.setAdapter(new ListViewAdapter(list, this));
     }
 
     @NonNull
@@ -58,7 +60,6 @@ public class MainActivity extends Activity {
         if (id == R.id.action_settings) {
             return true;
         }
-
         return super.onOptionsItemSelected(item);
     }
 

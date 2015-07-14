@@ -2,50 +2,18 @@ package com.example.xiaoqingtao.listviewdemo.view;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.util.AttributeSet;
 import android.util.Log;
-import android.util.LruCache;
 import android.widget.ImageView;
 
 import com.example.xiaoqingtao.listviewdemo.R;
 import com.example.xiaoqingtao.listviewdemo.interfaces.Request;
-import com.example.xiaoqingtao.listviewdemo.tools.ImageTools;
+import com.example.xiaoqingtao.listviewdemo.others.ImageProcess;
 
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Queue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-
-import rx.Observable;
-import rx.Subscriber;
-import rx.Subscription;
-import rx.android.schedulers.AndroidSchedulers;
-import rx.functions.Func1;
-import rx.schedulers.Schedulers;
-
-public class NetworkImageView extends ImageView implements Request {
-    private static final String TAG = "network image view";
-    private static LruCache<String, Bitmap> sCache;
-
-    private static ExecutorService sThreadPool;
-    private static Queue<Request> sTaskQueue;
-    private static HashSet<String> sRunningRequest;
-
-    public static void setThreadPool(ExecutorService threadPool) {
-        sThreadPool = threadPool;
-    }
-
-    public static void setCache(LruCache<String, Bitmap> cache) {
-        sCache = cache;
-    }
-
+public class NetworkImageView extends ImageView {
+    private static final String TAG = "networkimageview";
     private String mUrl;
-    private Subscription mSubscription;
+
 
     public NetworkImageView(Context context) {
         this(context, null);
@@ -57,43 +25,39 @@ public class NetworkImageView extends ImageView implements Request {
 
     public NetworkImageView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        if (sCache == null) {
-            int maxMemory = (int) Runtime.getRuntime().maxMemory();
-            int mCacheSize = maxMemory / 8;
-            sCache = new LruCache<String, Bitmap>(mCacheSize) {
-                @Override
-                protected int sizeOf(String key, Bitmap value) {
-                    return value.getRowBytes() * value.getHeight();
-                }
-            };
-        }
-//        if (mImages == null) {
-//            mImages = new NetworkImageBean();
-//        }
-        if (sThreadPool == null) {
-            sThreadPool = Executors.newFixedThreadPool(3);
-        }
-        if (sTaskQueue == null) {
-            sTaskQueue = new LinkedBlockingQueue<>();
-        }
-        if (sRunningRequest == null) {
-            sRunningRequest = new HashSet<>();
-        }
+
     }
 
-    public String getImageUrl() {
-        return mUrl;
-    }
 
-    private void clearSubscribe() {
-        if (mSubscription != null) {
-            mSubscription.unsubscribe();
-            mSubscription = null;
-        }
-    }
-
-    public void setImageUrl(String url) {
+    public void setImageUrl(final String url) {
         mUrl = url;
+        ImageProcess.getInstance(getContext().getApplicationContext()).post(new Request() {
+            @Override
+            public void onFinish(Bitmap bitmap) {
+                if (bitmap != null) {
+                    setImageBitmap(bitmap);
+                } else {
+                    setImageResource(R.drawable.error);
+                }
+            }
+
+            @Override
+            public String getUrl() {
+                return url;
+            }
+
+            @Override
+            public int getNeededImageWidth() {
+                return getWidth();
+            }
+
+            @Override
+            public void onError() {
+                setImageResource(R.drawable.error);
+                Log.d(TAG, "onError :" + "load " + url + " failed");
+            }
+        });
+        /*mUrl = url;
         sTaskQueue.offer(this);
         mSubscription = Observable.just(url)
                 .filter(new Func1<String, Boolean>() {//是否已经在running
@@ -147,7 +111,7 @@ public class NetworkImageView extends ImageView implements Request {
                     public void onNext(Bitmap bitmap) {
                         callFinished();
                     }
-                });
+                });*/
     }
 
     //普通写法：
@@ -194,66 +158,27 @@ public class NetworkImageView extends ImageView implements Request {
 //        } else {
 //            setImageBitmap(bitmap);
 //        }
-    private Bitmap getBitmap(String URL) {
-        Bitmap bitmap = null;
-        try {
-            URL url = new URL(URL);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.connect();
-            // get size
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inJustDecodeBounds = true;
-            BitmapFactory.decodeStream(conn.getInputStream(), null,
-                    options);
-            int width = options.outWidth;
-            int height = options.outHeight;
-            int min = Math.min(width, height);
-            int scale = Math.max(1, min / getWidth());
-            options.inJustDecodeBounds = false;
-            options.inSampleSize = scale;
-            conn = (HttpURLConnection) url.openConnection();
-            conn.connect();
-            bitmap = BitmapFactory.decodeStream(conn.getInputStream(),
-                    null,
-                    options);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return bitmap;
-    }
+//    private Bitmap getBitmap(String url) {
+//
+//    }
 
-    public synchronized static void callFinished() {
-        Iterator<Request> iterator = sTaskQueue.iterator();
-        while (iterator.hasNext()) {
-            Request req = iterator.next();
-            if (sCache.get(req.getUrl()) != null) {
-                req.onFinish(sCache.get(req.getUrl()));
-                iterator.remove();
-            }
-        }
-    }
-
-    @Override
-    public void onFinish(final Bitmap bitmap) {
-        if (bitmap != null) {
-            post(new Runnable() {
-                @Override
-                public void run() {
-                    setImageBitmap(bitmap);
-                }
-            });
-//            bitmap.recycle();
-        }
-    }
-
-    @Override
-    public String getUrl() {
-        return mUrl;
-    }
+//    public synchronized static void callFinished() {
+//        Iterator<Request> iterator = sTaskQueue.iterator();
+//        while (iterator.hasNext()) {
+//            Request req = iterator.next();
+//            if (sCache.get(req.getUrl()) != null) {
+//                req.onFinish(sCache.get(req.getUrl()));
+//                iterator.remove();
+//            }
+//        }
+//    }
 
     public void clear() {
         setImageResource(R.drawable.error);
-        clearSubscribe();
+//        clearSubscribe();
     }
 
+    public String getImageUrl() {
+        return mUrl;
+    }
 }

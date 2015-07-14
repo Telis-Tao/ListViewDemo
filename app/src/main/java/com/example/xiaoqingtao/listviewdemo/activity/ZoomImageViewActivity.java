@@ -17,6 +17,7 @@ import java.net.URL;
 public class ZoomImageViewActivity extends Activity {
     public static final String IMAGE_URL = "image_url";
     private ZoomImageView mImageView;
+    private MyAsyncTask mMyAsyncTask;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,25 +27,37 @@ public class ZoomImageViewActivity extends Activity {
         Intent i = getIntent();
         if (i != null) {
             String url = i.getStringExtra(IMAGE_URL);
-            new MyAsyncTask().execute(url);
+            mMyAsyncTask = new MyAsyncTask();
+            mMyAsyncTask.execute(url);
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mMyAsyncTask.cancel(true);
+        mMyAsyncTask = null;
     }
 
     private class MyAsyncTask extends AsyncTask<String, Void, Bitmap> {
         @Override
         protected void onPostExecute(Bitmap bitmap) {
             super.onPostExecute(bitmap);
-            mImageView.setImageBitmap(bitmap);
+            if (bitmap != null) {
+                mImageView.setImageBitmap(bitmap);
+            }
         }
 
         @Override
         protected Bitmap doInBackground(String... paras) {
+            if (paras.length != 1) {
+                throw new RuntimeException("Error url length!");
+            }
             try {
                 URL url = new URL(paras[0]);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.connect();
-                Bitmap bitmap = BitmapFactory.decodeStream(conn.getInputStream());
-                return bitmap;
+                return BitmapFactory.decodeStream(conn.getInputStream());
             } catch (IOException e) {
                 e.printStackTrace();
                 return null;
