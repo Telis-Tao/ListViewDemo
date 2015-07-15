@@ -5,12 +5,16 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.AbsListView;
 import android.widget.ListView;
 
 import com.example.xiaoqingtao.listviewdemo.R;
+import com.example.xiaoqingtao.listviewdemo.adapter.ListViewAdapter;
 import com.example.xiaoqingtao.listviewdemo.bean.ListViewBean;
 import com.example.xiaoqingtao.listviewdemo.db.DBManager;
-import com.example.xiaoqingtao.listviewdemo.others.ListViewAdapter;
+import com.example.xiaoqingtao.listviewdemo.others.ImageProcess;
+import com.example.xiaoqingtao.listviewdemo.view.NetworkImageView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +22,7 @@ import java.util.List;
 public class MainActivity extends Activity {
 
 
+    private static final String TAG = "MainActivity";
     private ListView mListView;
 
     @Override
@@ -27,6 +32,44 @@ public class MainActivity extends Activity {
         mListView = (ListView) findViewById(R.id.list_view);
         DBManager dbManager = new DBManager(getApplicationContext());
         List<ListViewBean> list = dbManager.getAll();
+        mListView.setOnScrollListener(
+                new AbsListView.OnScrollListener() {
+
+                    @Override
+                    public void onScrollStateChanged(AbsListView view, int
+                            scrollState) {
+                        switch (scrollState) {
+                            case SCROLL_STATE_IDLE:
+                                ImageProcess.getInstance(getApplication()).permitSubmit();
+                                ImageProcess.getInstance(getApplicationContext()).clearTasks();
+                                int first = view.getFirstVisiblePosition();
+                                int last = view.getLastVisiblePosition();
+//                            Log.d(TAG, "onScrollStateChanged " + first + " " + last);
+                                for (int i = 0; i <= last - first; i++) {
+                                    View tmp = view.getChildAt(i);
+                                    if (tmp != null) {
+                                        NetworkImageView niv = (NetworkImageView)
+                                                tmp.findViewById(R.id
+                                                        .icon);
+//                                    Log.d(TAG, "onScrollStateChanged loadImage");
+                                        niv.loadImage();
+                                    }
+                                }
+                                break;
+                            default:
+                                ImageProcess.getInstance(getApplication()).forbidSubmit();
+                                break;
+                        }
+                    }
+
+                    @Override
+                    public void onScroll(AbsListView view, int
+                            firstVisibleItem, int visibleItemCount,
+                                         int totalItemCount) {
+                    }
+                }
+
+        );
         mListView.setAdapter(new ListViewAdapter(list, this));
     }
 
@@ -63,4 +106,9 @@ public class MainActivity extends Activity {
         return super.onOptionsItemSelected(item);
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        ImageProcess.getInstance(getApplication()).shutDown();
+    }
 }

@@ -1,4 +1,4 @@
-package com.example.xiaoqingtao.listviewdemo.others;
+package com.example.xiaoqingtao.listviewdemo.adapter;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -27,7 +27,6 @@ public class ListViewAdapter extends BaseAdapter {
         this.mList = mList;
         this.mContext = context;
     }
-
     @Override
     public int getCount() {
         return mList.size();

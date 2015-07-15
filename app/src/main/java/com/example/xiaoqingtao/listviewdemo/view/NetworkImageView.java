@@ -28,22 +28,20 @@ public class NetworkImageView extends ImageView {
 
     }
 
-
-    public void setImageUrl(final String url) {
-        mUrl = url;
+    public void loadImage() {
         ImageProcess.getInstance(getContext().getApplicationContext()).post(new Request() {
             @Override
             public void onFinish(Bitmap bitmap) {
                 if (bitmap != null) {
                     setImageBitmap(bitmap);
                 } else {
-                    setImageResource(R.drawable.error);
+                    setImageResource(R.drawable.empty);
                 }
             }
 
             @Override
             public String getUrl() {
-                return url;
+                return mUrl;
             }
 
             @Override
@@ -54,10 +52,26 @@ public class NetworkImageView extends ImageView {
             @Override
             public void onError() {
                 setImageResource(R.drawable.error);
-                Log.d(TAG, "onError :" + "load " + url + " failed");
+                Log.d(TAG, "onError :" + "load " + mUrl + " failed");
             }
         });
-        /*mUrl = url;
+    }
+
+    public void setImageUrl(final String url) {
+//        Log.d(TAG, "setImageUrl " + url);
+        mUrl = url;
+        loadImage();
+    }
+
+    public void clear() {
+        setImageResource(R.drawable.error);
+    }
+
+    public String getImageUrl() {
+        return mUrl;
+    }
+}
+/*mUrl = url;
         sTaskQueue.offer(this);
         mSubscription = Observable.just(url)
                 .filter(new Func1<String, Boolean>() {//是否已经在running
@@ -72,23 +86,23 @@ public class NetworkImageView extends ImageView {
                 }).filter(new Func1<String, Boolean>() {
                     @Override
                     public Boolean call(String url) {//缓存命中，则到这里为止
-                        return sCache.get(url) == null;
+                        return sCache.get(url) == empty;
                     }
                 }).filter(new Func1<String, Boolean>() {
                     @Override
                     public Boolean call(String url) {//硬盘命中
                         Bitmap bitmap = ImageTools.getBitmapFromDisk(url, getContext());
-                        if (url != null) {
+                        if (url != empty) {
                             sCache.put(mUrl, bitmap);
                         }
-                        return bitmap == null;
+                        return bitmap == empty;
                     }
                 }).map(new Func1<String, Bitmap>() {
                     @Override
                     public Bitmap call(String url) {
                         Bitmap bitmap = getBitmap(url);//从网络上获取
                         sRunningRequest.remove(url);
-                        if (bitmap != null) {
+                        if (bitmap != empty) {
                             sCache.put(url, bitmap);//存入内存
                             ImageTools.saveBitmapToDisk(url, bitmap, getContext());//存入硬盘
                         }
@@ -112,11 +126,10 @@ public class NetworkImageView extends ImageView {
                         callFinished();
                     }
                 });*/
-    }
 
-    //普通写法：
+//普通写法：
 //    NetworkImageBean bitmap = sCache.get(mUrl);
-    //        if (bitmap == null) {
+//        if (bitmap == empty) {
 //            //            if (sRunningRequest.contains(mUrl)) {
 //            sTaskQueue.add(this);
 //            synchronized (sRunningRequest) {
@@ -132,7 +145,7 @@ public class NetworkImageView extends ImageView {
 //                                // get size
 //                                BitmapFactory.Options options = new BitmapFactory.Options();
 //                                options.inJustDecodeBounds = true;
-//                                BitmapFactory.decodeStream(conn.getInputStream(), null,
+//                                BitmapFactory.decodeStream(conn.getInputStream(), empty,
 //                                        options);
 //                                int width = options.outWidth;
 //                                int height = options.outHeight;
@@ -144,7 +157,7 @@ public class NetworkImageView extends ImageView {
 //                                conn.connect();
 //                                NetworkImageBean bitmap = BitmapFactory.decodeStream(conn
 // .getInputStream(),
-//                                        null,
+//                                        empty,
 //                                        options);
 //                                callFinished(bitmap, mUrl);
 //                                //                        sTaskQueue.remove(this);
@@ -166,19 +179,9 @@ public class NetworkImageView extends ImageView {
 //        Iterator<Request> iterator = sTaskQueue.iterator();
 //        while (iterator.hasNext()) {
 //            Request req = iterator.next();
-//            if (sCache.get(req.getUrl()) != null) {
+//            if (sCache.get(req.getUrl()) != empty) {
 //                req.onFinish(sCache.get(req.getUrl()));
 //                iterator.remove();
 //            }
 //        }
 //    }
-
-    public void clear() {
-        setImageResource(R.drawable.error);
-//        clearSubscribe();
-    }
-
-    public String getImageUrl() {
-        return mUrl;
-    }
-}

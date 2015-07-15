@@ -4,8 +4,9 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
-import android.util.LruCache;
+import android.util.Log;
 
+import com.example.xiaoqingtao.listviewdemo.interfaces.Cacheable;
 import com.example.xiaoqingtao.listviewdemo.interfaces.Request;
 
 import java.net.HttpURLConnection;
@@ -19,12 +20,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class ImageProcess {
     private static final String TAG = "ImageProcess";
-    private static LruCache<String, Bitmap> sCache;
+    private static Cacheable<String, Bitmap> sCache;
     private static ExecutorService sThreadPool;
     private static Queue<Request> sTaskQueue;
     private static HashSet<String> sRunningRequest;
     private static ImageProcess mImageProcess;
     private static Context mContext;
+    private boolean isPermitPost = true;
 
     private synchronized static void callFinished() {
         new Handler(mContext.getMainLooper()).post(new Runnable() {
@@ -41,10 +43,13 @@ public class ImageProcess {
                 }
             }
         });
-
     }
 
-    public void post(Request request) {
+    public synchronized void post(Request request) {
+        if (!isPermitPost) {
+            return;
+        }
+//        Log.d(TAG, "post ");
         sTaskQueue.offer(request);
         String url = request.getUrl();
         Bitmap bitmap = sCache.get(url);
@@ -53,11 +58,17 @@ public class ImageProcess {
             callFinished();
             return;
         }
-        synchronized (sRunningRequest) {
-            if (!sRunningRequest.contains(url)) {
-                sRunningRequest.add(url);
-            }
+        if (!sRunningRequest.contains(url)) {
+            sRunningRequest.add(url);
         }
+
+//        if (sThreadPool == empty || sThreadPool.isShutdown()) {
+//            synchronized (ImageProcess.class) {
+//                if (sThreadPool == empty || sThreadPool.isShutdown()) {
+//                    sThreadPool = Executors.newFixedThreadPool(3);
+//                }
+//            }
+//        }
         sThreadPool.submit(new NetworkRunnable(url, request));
     }
 
@@ -74,14 +85,7 @@ public class ImageProcess {
     public ImageProcess(Context context) {
         mContext = context;
         if (sCache == null) {
-            int maxMemory = (int) Runtime.getRuntime().maxMemory();
-            int mCacheSize = maxMemory / 8;
-            sCache = new LruCache<String, Bitmap>(mCacheSize) {
-                @Override
-                protected int sizeOf(String key, Bitmap value) {
-                    return value.getRowBytes() * value.getHeight();
-                }
-            };
+            sCache = ImageCache.getInstance(context);
         }
         if (sThreadPool == null) {
             sThreadPool = Executors.newFixedThreadPool(3);
@@ -106,9 +110,13 @@ public class ImageProcess {
         @Override
         public void run() {
             Bitmap bitmap = null;
+//            Log.d(TAG, "run " + mUrl);
             try {
                 URL url = new URL(mUrl);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(1500);
+                conn.setRequestMethod("GET");
+//                conn.setRequestMethod("get");
                 conn.connect();
                 // get size
                 BitmapFactory.Options options = new BitmapFactory.Options();
@@ -122,17 +130,49 @@ public class ImageProcess {
                 options.inJustDecodeBounds = false;
                 options.inSampleSize = scale;
                 conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(1500);
+                conn.setRequestMethod("GET");
                 conn.connect();
                 bitmap = BitmapFactory.decodeStream(conn.getInputStream(),
                         null,
                         options);
             } catch (Exception e) {
                 e.printStackTrace();
+                Log.d(TAG, "run error");
                 mRequest.onError();
+            }
+            if (bitmap == null) {
+                Log.d(TAG, "run bitmap is null!!");
             }
             sCache.put(mUrl, bitmap);
             sRunningRequest.remove(mUrl);
             callFinished();
         }
+    }
+
+    public synchronized void clearTasks() {
+        sTaskQueue.clear();
+        sRunningRequest.clear();
+    }
+
+    public void shutDown() {
+        sThreadPool.shutdown();
+        sThreadPool = null;
+    }
+
+    public void permitSubmit() {
+        synchronized (ImageProcess.class) {
+            isPermitPost = true;
+        }
+    }
+
+    public void forbidSubmit() {
+        synchronized (ImageProcess.class) {
+            isPermitPost = false;
+        }
+    }
+
+    public boolean isPermit() {
+        return isPermitPost;
     }
 }
