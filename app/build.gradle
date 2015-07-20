@@ -3,7 +3,9 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 22
     buildToolsVersion "22.0.1"
-
+    sourceSets.main {
+        jni.srcDirs 'src/main/jni'
+    }
     defaultConfig {
         applicationId "com.example.xiaoqingtao.listviewdemo"
         minSdkVersion 14
@@ -17,6 +19,7 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
 }
 
 dependencies {

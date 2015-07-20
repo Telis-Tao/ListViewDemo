@@ -156,8 +156,11 @@ public class ImageProcess {
     }
 
     public void shutDown() {
-        sThreadPool.shutdown();
-        sThreadPool = null;
+        if (sThreadPool != null) {
+            sThreadPool.shutdown();
+            sThreadPool = null;
+            mImageProcess = null;
+        }
     }
 
     public void permitSubmit() {

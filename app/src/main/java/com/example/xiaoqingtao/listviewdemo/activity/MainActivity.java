@@ -31,7 +31,7 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         mListView = (ListView) findViewById(R.id.list_view);
         DBManager dbManager = new DBManager(getApplicationContext());
-        List<ListViewBean> list = dbManager.getAll();
+        List<ListViewBean> list = dbManager.getAllFromListViewData();
         mListView.setOnScrollListener(
                 new AbsListView.OnScrollListener() {
 

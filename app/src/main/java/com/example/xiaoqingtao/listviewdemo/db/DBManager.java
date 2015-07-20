@@ -9,9 +9,6 @@ import com.example.xiaoqingtao.listviewdemo.bean.ListViewBean;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Created by xiaoqing.tao on 2015/7/9.
- */
 public class DBManager {
     private static final String LIST_VIEW_DATA = "list_view_data";
     private DBHelper mDBHelper;
@@ -22,7 +19,7 @@ public class DBManager {
         mDB = mDBHelper.getWritableDatabase();
     }
 
-    public void add(ListViewBean item) {
+    public void addToListViewData(ListViewBean item) {
         mDB.execSQL("INSERT INTO " + LIST_VIEW_DATA + " VALUES(null, ?, ?,?,?,?,?,?)", new
                 Object[]{item.getName(), item
                 .getRating(), item.getPrice(), item.getDescription(), item.getDistance(), item
@@ -30,7 +27,7 @@ public class DBManager {
 
     }
 
-    public ListViewBean get(int i) {
+    public ListViewBean getFromListViewData(int i) {
         Cursor cursor;
         ListViewBean listViewBean = new ListViewBean(ListViewBean.URLS[i]);
         cursor = mDB.rawQuery("select * from " + LIST_VIEW_DATA + " where _id = " + i, null);
@@ -46,7 +43,7 @@ public class DBManager {
         return listViewBean;
     }
 
-    public List<ListViewBean> getAll() {
+    public List<ListViewBean> getAllFromListViewData() {
         Cursor cursor = mDB.rawQuery("select * from " + LIST_VIEW_DATA, null);
         List<ListViewBean> list = new ArrayList<>();
         int i = 0;
@@ -65,11 +62,11 @@ public class DBManager {
         return list;
     }
 
-    public void addAll(List<ListViewBean> list) {
+    public void addAllToListViewData(List<ListViewBean> list) {
         mDB.beginTransaction();
         try {
             for (ListViewBean item : list) {
-                add(item);
+                addToListViewData(item);
             }
             mDB.setTransactionSuccessful();
         } finally {
